@@ -22,7 +22,7 @@ class Include(ACommand):
     }
 
   @staticmethod
-  def invoke(readme_lines: list[str], index: int, args: list[str], logger: Callable[[str], None], config: dict):
+  def invoke(readme_lines: list[str], base_path: str, index: int, args: list[str], logger: Callable[[str], None], config: dict):
 
     if len(args) == 0:
       logger('please specify a target file path')
@@ -30,8 +30,11 @@ class Include(ACommand):
 
     target_path = ''.join(args)
 
+    if not target_path.startswith('/'):
+      target_path = os.path.join(base_path, target_path)
+
     if not '.' in target_path or not os.path.isfile(target_path):
-      logger('The provided path does not point at a valid file')
+      logger(f'The provided path does not point at a valid file ({target_path})')
       return
 
     lines = []

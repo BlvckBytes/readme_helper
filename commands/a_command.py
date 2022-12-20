@@ -10,7 +10,7 @@ class ACommand(ABC):
 
   @staticmethod
   @abstractmethod
-  def invoke(readme_lines: list[str], index: int, args: list[str], logger: Callable[[str], None], config: dict):
+  def invoke(readme_lines: list[str], base_path: str, index: int, args: list[str], logger: Callable[[str], None], config: dict):
     pass
 
   @staticmethod

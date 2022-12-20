@@ -12,6 +12,8 @@ if len(sys.argv) < 3:
 input_path = sys.argv[1]
 output_path = sys.argv[2]
 
+base_path = os.path.dirname(input_path)
+
 if not os.path.isfile(input_path) or not input_path.endswith('.md'):
   print('Invalid input path, not a markdown file')
   sys.exit(1)
@@ -100,7 +102,7 @@ while i > 0:
     continue
 
   # Invoke
-  invokes[command](readme_lines, line_index, command_args, command_logger, configs[command])
+  invokes[command](readme_lines, base_path, line_index, command_args, command_logger, configs[command])
 
 with open(output_path, 'w') as f:
   f.writelines(readme_lines)
