@@ -8,7 +8,7 @@ class Config(Enum):
   SKIP_LEADING_EMPTY = 2
   SKIP_LEADING_PACKAGE = 3
   SKIP_LEADING_IMPORTS = 4
-  CODE_LANGUAGE = 5
+  WRAP_IN_COLLAPSIBLE = 5
 
 class Include(ACommand):
 
@@ -18,7 +18,8 @@ class Include(ACommand):
       Config.SKIP_LEADING_COMMENTS.name: 'false',
       Config.SKIP_LEADING_EMPTY.name: 'false',
       Config.SKIP_LEADING_PACKAGE.name: 'false',
-      Config.SKIP_LEADING_IMPORTS.name: 'false'
+      Config.SKIP_LEADING_IMPORTS.name: 'false',
+      Config.WRAP_IN_COLLAPSIBLE.name: 'false'
     }
 
   @staticmethod
@@ -44,54 +45,67 @@ class Include(ACommand):
     # Get the target file's extension
     file_ext = os.path.splitext(target_path)[1]
 
+    # Configuration
+    skip_leading_comments = ACommand.is_option_enabled(config[Config.SKIP_LEADING_COMMENTS.name])
+    skip_leading_empty    = ACommand.is_option_enabled(config[Config.SKIP_LEADING_EMPTY.name])
+    skip_leading_package  = ACommand.is_option_enabled(config[Config.SKIP_LEADING_PACKAGE.name])
+    skip_leading_imports  = ACommand.is_option_enabled(config[Config.SKIP_LEADING_IMPORTS.name])
+
     in_comment = False
 
-    while len(lines) > 0:
-      first_line = lines.pop(0)
-      line_content = first_line.strip()
+    filtered_lines = []
+    for i in range(0, len(lines)):
+      line_content = lines[i].strip()
+      is_package = line_content.startswith('package')
+      is_import = line_content.startswith('import')
 
-      # On a commented out line
-      if line_content.startswith('/*') or line_content.startswith('//'):
+      if is_import and skip_leading_imports:
+        continue
+
+      if is_package and skip_leading_package:
+        continue
+
+      if line_content.startswith('/*'):
         in_comment = True
 
-      # Do not add comments when in skip mode
-      if ACommand.is_option_enabled(config[Config.SKIP_LEADING_COMMENTS.name]) and in_comment:
-
-        # End single line comment on same line
-        if line_content.startswith('//'):
-          in_comment = False
-
-        # Multi line comment just ended
+      if skip_leading_comments and in_comment:
         if line_content.endswith('*/'):
           in_comment = False
-
-        continue
-      
-      # Do not add empty lines when in skip mode
-      if ACommand.is_option_enabled(config[Config.SKIP_LEADING_EMPTY.name]) and line_content == '':
         continue
 
-      # Do not add package declarations when in skip mode
-      if ACommand.is_option_enabled(config[Config.SKIP_LEADING_PACKAGE.name]) and line_content.startswith('package'):
+      if skip_leading_empty and line_content == '':
         continue
 
-      # Do not add import statements when in skip mode
-      if ACommand.is_option_enabled(config[Config.SKIP_LEADING_IMPORTS.name]) and line_content.startswith('import'):
-        continue
-      
-      # First line which passed all checks, put the popped line back and stop stripping
-      lines.insert(0, first_line)
-      break
+      # Begin of file encountered, no more stripping from here on out,
+      # just copy the remaining lines over and stop the iteration
+      if not is_package and not is_import and not in_comment and line_content != '':
+
+        # The file begin shouldn't be directly glued onto any of the previous non-skipped lines
+        len_filtered_lines = len(filtered_lines)
+        if len_filtered_lines > 0 and filtered_lines[len_filtered_lines - 1].strip() != '':
+          filtered_lines.append('\n')
+
+        filtered_lines.extend(lines[i:])
+        break
+
+      filtered_lines.append(lines[i])
 
     # Wrap the remaining lines by a code block of type file_ext
-    lines.insert(0, f'```{file_ext[1:]}\n')
-    lines.append('```\n')
+    filtered_lines.insert(0, f'```{file_ext[1:]}\n')
+    filtered_lines.append('```\n')
+
+    # Wrap the whole block into a details tag where the summary is going to display the file name of the target path
+    if ACommand.is_option_enabled(config[Config.WRAP_IN_COLLAPSIBLE.name]):
+      # Wrap in details tag
+      filtered_lines.insert(0, f'<summary>{target_path[target_path.rindex("/") + 1:]}</summary>\n\n')
+      filtered_lines.insert(0, '<details>\n')
+      filtered_lines.append('</details>\n\n')
 
     # Remove instruction comment
     readme_lines.pop(index)
 
     # Insert result lines
-    for line in reversed(lines):
+    for line in reversed(filtered_lines):
       readme_lines.insert(index, line)
 
     logger(f'Inserted transformed contents of {target_path}')
