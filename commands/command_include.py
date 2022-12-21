@@ -92,6 +92,11 @@ class Include(ACommand):
 
     # Wrap the remaining lines by a code block of type file_ext
     filtered_lines.insert(0, f'```{file_ext[1:]}\n')
+
+    # Last line should always contain a trailing newline
+    if not filtered_lines[len(filtered_lines) - 1].endswith('\n'):
+      filtered_lines[len(filtered_lines) - 1] = filtered_lines[len(filtered_lines) - 1] + '\n'
+
     filtered_lines.append('```\n')
 
     # Wrap the whole block into a details tag where the summary is going to display the file name of the target path
